@@ -28,28 +28,13 @@
 use std::fmt;
 use std::ops;
 use std::str;
+use std::convert;
 
 /* ------------------------------------------------------------------------------------------------
  * Macros
  * --------------------------------------------------------------------------------------------- */
 
-/*
-macro_rules! derive_common_bitvec_things {
-    ($type:ty) => {
-        impl fmt::Display for $type {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                let bitstring: String = self.bitvec.iter().rev()//So we print msb -> lsb
-                    .map(|b| match b {
-                        true  => '1',
-                        false => '0',
-                    })
-                    .collect();
-                write!(f, "{}", bitstring)
-            }
-        }
-    };
-}
-*/
+//TODO
 
 /* ------------------------------------------------------------------------------------------------
  * Constants
@@ -72,28 +57,6 @@ macro_rules! derive_common_bitvec_things {
 pub struct BitVec {
     bitvec: Vec<bool>,//lsb to msb
 }
-
-/*
-#[derive(Debug, Clone)]
-struct DataBitVec {
-    bitvec: Vec<bool>,
-}
-
-#[derive(Debug, Clone)]
-struct CheckBitVec {
-    bitvec: Vec<bool>,
-}
-
-#[derive(Debug, Clone)]
-struct SyndromeBitVec {
-    bitvec: Vec<bool>,
-}
-
-#[derive(Debug, Clone)]
-struct CodewordBitVec {
-    bitvec: Vec<bool>,
-}
-*/
 
 /* ------------------------------------------------------------------------------------------------
  * Associated Functions and Methods
@@ -136,11 +99,6 @@ pub trait CodewordBitVec {
     //fn num_data_and_check_bits(&self) -> (usize, usize);
     //fn print_codeword_table(&self);
 }
-
-/*
-pub trait BitVec: fmt::Debug + Clone + fmt::Display + AsRef<[bool]> + AsRef<Vec<bool>> {//TODO also Display, deref into slice of bools, index into bools, etc
-}
-*/
 
 pub trait Bin {//Old
     fn bin_string(&self) -> String;
@@ -185,6 +143,30 @@ impl From<Vec<bool>> for BitVec {
         BitVec {
             bitvec,
         }
+    }
+}
+
+impl convert::AsRef<Vec<bool>> for BitVec {
+    fn as_ref(&self) -> &Vec<bool> {
+        &self.bitvec
+    }
+}
+
+impl convert::AsMut<Vec<bool>> for BitVec {
+    fn as_mut(&mut self) -> &mut Vec<bool> {
+        &mut self.bitvec
+    }
+}
+
+impl convert::AsRef<[bool]> for BitVec {
+    fn as_ref(&self) -> &[bool] {
+        self.bitvec.as_ref()
+    }
+}
+
+impl convert::AsMut<[bool]> for BitVec {
+    fn as_mut(&mut self) -> &mut [bool] {
+        self.bitvec.as_mut()
     }
 }
 
@@ -250,29 +232,6 @@ impl str::FromStr for BitVec {
         Ok(BitVec { bitvec: parsed_bitvec? })
     }
 }
-
-/*
-impl BitVec for DataBitVec {
-    //TODO
-}
-
-impl BitVec for CheckBitVec {
-    //TODO
-}
-
-impl BitVec for SyndromeBitVec {
-    //TODO
-}
-
-impl BitVec for CodewordBitVec {
-    //TODO
-}
-
-derive_common_bitvec_things!(DataBitVec);
-derive_common_bitvec_things!(CheckBitVec);
-derive_common_bitvec_things!(SyndromeBitVec);
-derive_common_bitvec_things!(CodewordBitVec);
-*/
 
 impl Bin for &[bool] {//Old
     fn bin_string(&self) -> String {
