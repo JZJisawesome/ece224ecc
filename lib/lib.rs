@@ -119,19 +119,19 @@ impl BitVec {
  * Traits And Default Implementations
  * --------------------------------------------------------------------------------------------- */
 
-pub trait Data {
+pub trait DataBitVec {
     //Assuming just data in the BitVec
     fn check_bits_needed(&self) -> usize;
     fn encode(&self) -> BitVec;
 }
 
-pub trait CheckBits {
+pub trait CheckBitVec {
 }
 
-pub trait Syndrome {
+pub trait SyndromeBitVec {
 }
 
-pub trait Codeword {
+pub trait CodewordBitVec {
     //TODO
     //fn num_data_and_check_bits(&self) -> (usize, usize);
     //fn print_codeword_table(&self);
@@ -165,7 +165,7 @@ pub trait Bin {//Old
  * Trait Implementations
  * --------------------------------------------------------------------------------------------- */
 
-impl Data for BitVec {
+impl DataBitVec for BitVec {
     fn check_bits_needed(&self) -> usize {
         let num_data_bits = self.bitvec.len();
         let mut num_check_bits = 0;
@@ -185,6 +185,26 @@ impl From<Vec<bool>> for BitVec {
         BitVec {
             bitvec,
         }
+    }
+}
+
+impl From<BitVec> for Vec<bool> {
+    fn from(bitvec: BitVec) -> Self {
+        bitvec.bitvec
+    }
+}
+
+impl From<usize> for BitVec {
+    fn from(num: usize) -> Self {
+        todo!()
+    }
+}
+
+impl TryFrom<BitVec> for usize {
+    type Error = ();
+
+    fn try_from(bitvec: BitVec) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

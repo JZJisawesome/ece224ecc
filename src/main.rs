@@ -58,12 +58,13 @@ fn bad_usage() {
     println!("p: generate practice questions");
 }
 
-fn encode_subcmd(data: &[bool]) {
+fn encode_subcmd(data: &BitVec) {
+    use ece224ecc::DataBitVec;
     let num_data_bits = data.len();
     let num_check_bits = data.check_bits_needed();
     let total_bits = num_data_bits + num_check_bits;
 
-    println!("Encoding data              : \"{}\" (msb -> lsb)", data.bin_string());
+    println!("Encoding data              : \"{}\" (msb -> lsb)", data);
     println!("Number of data bits        : {}", num_data_bits);
     println!("Number of check bits needed: {}", num_check_bits);
 
@@ -71,6 +72,7 @@ fn encode_subcmd(data: &[bool]) {
 }
 
 fn decode_subcmd(codeword: &[bool]) {
+//fn decode_subcmd(codeword: &BitVec) {
     let (num_data_bits, num_check_bits) = codeword.num_data_and_check_bits();
     let total_bits = num_data_bits + num_check_bits;
 
