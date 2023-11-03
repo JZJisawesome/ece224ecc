@@ -63,11 +63,22 @@ pub struct BitVec {
  * --------------------------------------------------------------------------------------------- */
 
 impl BitVec {
-    pub fn new() -> Self {
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    //Private helpers
+    /*
+    fn new() -> Self {
         BitVec {
             data: Vec::new()
         }
     }
+    */
 
     fn with_capacity(capacity: usize) -> Self {
         BitVec {
@@ -75,12 +86,14 @@ impl BitVec {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
-    pub fn empty(&self) -> bool {
-        self.data.is_empty()
+    fn num_data_check_bits(&self) -> (usize, usize) {
+        let total_bits = self.len();
+        let mut num_check_bits = 0;
+        while (1 << num_check_bits) < (total_bits + 1) {
+            num_check_bits += 1;
+        }
+        let num_data_bits = total_bits - num_check_bits;
+        (num_data_bits, num_check_bits)
     }
 }
 
@@ -90,44 +103,34 @@ impl BitVec {
 
 pub trait DataBitVec {
     //Assuming just data in the BitVec
-    fn check_bits_needed(&self) -> usize;
+    fn num_data_bits(&self) -> usize;//The number present
+    fn num_check_bits(&self) -> usize;//The number needed
     fn get_codeword(&self) -> BitVec;
+    fn get_data_bits(&self) -> BitVec;
     fn get_check_bits(&self) -> BitVec;
 }
 
 pub trait CheckBitVec {
+    //Impossible to determine data bits
+    fn num_check_bits(&self) -> usize;//The number present
+    fn get_check_bits(&self) -> BitVec;
 }
 
 pub trait SyndromeBitVec {
+    //Impossible to determine data bits
+    fn num_check_bits(&self) -> usize;//The number needed
+    fn get_syndrome_bits(&self) -> BitVec;
 }
 
 pub trait CodewordBitVec {
-    fn num_data_check_bits(&self) -> (usize, usize);
+    fn num_data_bits(&self) -> usize;//The number present
+    fn num_check_bits(&self) -> usize;//The number present
     fn get_data_bits(&self) -> BitVec;
     fn get_check_bits(&self) -> BitVec;
-    fn get_syndrome(&self) -> BitVec;
+    fn get_syndrome_bits(&self) -> BitVec;
     fn get_expected_check_bits(&self) -> BitVec;
-    fn get_corrected_codeword(&self) -> BitVec;
+    fn get_corrected_codeword(&self) -> Result<BitVec, ()>;
     fn print_table(&self);
-}
-
-pub trait Bin {//Old
-    fn bin_string(&self) -> String;
-    fn into_usize(&self) -> usize;
-
-    //Assuming just data
-    fn check_bits_needed(&self) -> usize;
-    fn encode(&self) -> Vec<bool>;
-
-    //Assuming a whole codeword and in proper order
-    fn get_data_bits(&self) -> Vec<bool>;
-    fn get_check_bits(&self) -> Vec<bool>;
-    fn get_expected_check_bits(&self) -> Vec<bool>;
-    fn get_syndrome(&self) -> Vec<bool>;
-    fn correct(&self) -> Vec<bool>;
-    fn num_data_and_check_bits(&self) -> (usize, usize);
-    fn print_codeword_table(&self);
-    //TODO extract and calc check bits
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -135,8 +138,11 @@ pub trait Bin {//Old
  * --------------------------------------------------------------------------------------------- */
 
 impl DataBitVec for BitVec {
-    fn check_bits_needed(&self) -> usize {
-        let num_data_bits = self.data.len();
+    fn num_data_bits(&self) -> usize {
+        self.data.len()
+    }
+    fn num_check_bits(&self) -> usize {//The number needed
+        let num_data_bits = DataBitVec::num_data_bits(self);
         let mut num_check_bits = 0;
         while (1 << num_check_bits) < (num_data_bits + num_check_bits + 1) {
             num_check_bits += 1;
@@ -147,22 +153,42 @@ impl DataBitVec for BitVec {
     fn get_codeword(&self) -> BitVec {
         todo!()
     }
+    fn get_data_bits(&self) -> BitVec {
+        self.clone()
+    }
     fn get_check_bits(&self) -> BitVec {
         todo!();
     }
 }
 
 impl CheckBitVec for BitVec {
-    //TODO
+    fn num_check_bits(&self) -> usize {
+        self.len()
+    }
+    fn get_check_bits(&self) -> BitVec {
+        self.clone()
+    }
 }
 
 impl SyndromeBitVec for BitVec {
-    //TODO
+    fn num_check_bits(&self) -> usize {
+        self.len()
+    }
+
+    fn get_syndrome_bits(&self) -> BitVec {
+        self.clone()
+    }
 }
 
 impl CodewordBitVec for BitVec {
-    fn num_data_check_bits(&self) -> (usize, usize) {
-        todo!()
+    fn num_data_bits(&self) -> usize {
+        let (num_data_bits, _) = self.num_data_check_bits();
+        num_data_bits
+    }
+
+    fn num_check_bits(&self) -> usize {
+        let (_, num_check_bits) = self.num_data_check_bits();
+        num_check_bits
     }
 
     fn get_data_bits(&self) -> BitVec {
@@ -183,7 +209,7 @@ impl CodewordBitVec for BitVec {
             .collect()
     }
 
-    fn get_syndrome(&self) -> BitVec {
+    fn get_syndrome_bits(&self) -> BitVec {
         let check_bits = CodewordBitVec::get_check_bits(self);
         let expected_check_bits = self.get_expected_check_bits();
         std::iter::zip(check_bits.iter(), expected_check_bits.iter())
@@ -216,15 +242,20 @@ impl CodewordBitVec for BitVec {
         expected_check_bits
     }
 
-    fn get_corrected_codeword(&self) -> BitVec {
+    fn get_corrected_codeword(&self) -> Result<BitVec, ()> {
         //TODO avoid conversion to usize
-        let syndrome: usize = self.get_syndrome().try_into().unwrap();
+        let syndrome: usize = CodewordBitVec::get_syndrome_bits(self).try_into().unwrap();
         let mut corrected_codeword = self.clone();
         if syndrome != 0 {
-            //Correct the invalid bi5
-            corrected_codeword.data[syndrome - 1] ^= true;
+            let bad_index = syndrome - 1;
+            if bad_index >= self.len() {
+                return Err(());
+            }
+
+            //Correct the invalid bit
+            corrected_codeword.data[bad_index] ^= true;
         }
-        corrected_codeword
+        Ok(corrected_codeword)
         /*
         self.iter().enumerate()
             .map(|(i, &bit)| {
@@ -240,7 +271,68 @@ impl CodewordBitVec for BitVec {
     }
 
     fn print_table(&self) {
-        todo!()
+        let (num_data_bits, num_check_bits) = self.num_data_check_bits();
+        let total_bits = self.len();
+
+        let expected_check_bits = self.get_expected_check_bits();
+
+        let pwidth = usize::try_from(total_bits.ilog2() + 1).unwrap();
+        let vwidth = usize::try_from(std::cmp::max(num_data_bits, num_check_bits).ilog10() + 1).unwrap();
+
+        println!(
+            "Position{} | Value{} | Expected ",
+            " ".repeat(pwidth.saturating_sub(8)),
+            " ".repeat(vwidth)
+        );
+        println!(
+            "---------{}+-------{}+----------",
+            "-".repeat(pwidth.saturating_sub(8)),
+            "-".repeat(vwidth)
+        );
+        println!(
+            "{}{} | Unused{} | N/A",
+            " ".repeat(8usize.saturating_sub(pwidth)),
+            "0".repeat(pwidth),
+            " ".repeat(vwidth.saturating_sub(1))
+        );
+
+        let mut data_bit_counter = 0;
+        let mut check_bit_counter = 0;
+        for i in 1..=total_bits {
+            println!(
+                "{}{:0pwidth$b} | {}={} | {}",
+                " ".repeat(8usize.saturating_sub(pwidth)),
+                i,
+                if i.is_power_of_two() {
+                    format!(
+                        "C[{:0vwidth$}]",
+                        check_bit_counter,
+                        vwidth = vwidth
+                    )
+                } else {
+                    format!(
+                        "D[{:0vwidth$}]",
+                        data_bit_counter,
+                        vwidth = vwidth
+                    )
+                },
+                if self[i - 1] {1} else {0},
+                if i.is_power_of_two() {
+                    format!(
+                        "{:b}",
+                        if expected_check_bits[check_bit_counter] {1} else {0}
+                    )
+                } else {
+                    "N/A".to_string()
+                }
+            );
+
+            if i.is_power_of_two() {
+                check_bit_counter += 1;
+            } else {
+                data_bit_counter += 1;
+            }
+        }
     }
 }
 
@@ -366,181 +458,6 @@ impl str::FromStr for BitVec {
             })
             .collect();
         Ok(BitVec { data: parsed_bitvec? })
-    }
-}
-
-impl Bin for &[bool] {//Old
-    fn bin_string(&self) -> String {
-        self.iter().rev()//So we print msb -> lsb
-            .map(|b| match b {
-                true  => '1',
-                false => '0',
-            })
-            .collect()
-    }
-    fn into_usize(&self) -> usize {
-        /*
-        let mut val = 0;
-        for i in 0..self.len() {
-            if self[i] {
-                val |= 1 << i;
-            }
-        }
-        val
-        */
-        self.iter()
-            .enumerate()
-            .fold(0, |val, (i, &bit)| val | (if bit {1 << i} else {0}))
-    }
-
-    //Assuming just data
-    fn check_bits_needed(&self) -> usize {
-        let num_data_bits = self.len();
-        let mut num_check_bits = 0;
-        while (1 << num_check_bits) < (num_data_bits + num_check_bits + 1) {
-            num_check_bits += 1;
-        }
-        num_check_bits
-    }
-    fn encode(&self) -> Vec<bool> {
-        todo!()
-    }
-
-    //Assuming a whole codeword
-    fn get_data_bits(&self) -> Vec<bool> {
-        self.iter()
-            .copied()
-            .enumerate()
-            .filter(|(i, _)| !((i + 1).is_power_of_two()))
-            .map(|(_, bit)| bit)
-            .collect()
-    }
-    fn get_check_bits(&self) -> Vec<bool> {
-        self.iter()
-            .copied()
-            .enumerate()
-            .filter(|(i, _)| (i + 1).is_power_of_two())
-            .map(|(_, bit)| bit)
-            .collect()
-    }
-    fn get_expected_check_bits(&self) -> Vec<bool> {
-        let mut expected_check_bits: Vec<bool> = Vec::with_capacity(self.len());
-
-        let (_, num_check_bits) = self.num_data_and_check_bits();
-
-        for i in 0..num_check_bits {//Iterate over all check bits
-            let check_bit_pos = 1 << i;//The actual check bit position
-            expected_check_bits.push(false);
-
-            for j in 0..self.len() {//Iterate over all data bits
-                let data_bit_pos = j + 1;//The actual data bit position
-                if data_bit_pos.is_power_of_two() {
-                    continue;//Skip check bits
-                }
-
-                //We only include the data bit in the xor if
-                //the relevant bit of the position is a 1
-                if (data_bit_pos & check_bit_pos) != 0 {
-                    expected_check_bits[i] ^= self[j];
-                }
-            }
-        }
-        expected_check_bits
-    }
-    fn get_syndrome(&self) -> Vec<bool> {
-        let check_bits = self.get_check_bits();
-        let expected_check_bits = self.get_expected_check_bits();
-        std::iter::zip(check_bits.iter(), expected_check_bits.iter())
-            .map(|(a, b)| a ^ b)
-            .collect()
-    }
-    fn correct(&self) -> Vec<bool> {
-        let syndrome = self.get_syndrome();
-        let syndromeu = (&syndrome[..]).into_usize();
-        self.iter().enumerate()
-            .map(|(i, &bit)| {
-                let pos = i + 1;
-                if pos == syndromeu {
-                    !bit
-                } else {
-                    bit
-                }
-            })
-            .collect()
-    }
-    fn num_data_and_check_bits(&self) -> (usize, usize) {
-        let total_bits = self.len();
-        let mut num_check_bits = 0;
-        while (1 << num_check_bits) < (total_bits + 1) {
-            num_check_bits += 1;
-        }
-        let num_data_bits = total_bits - num_check_bits;
-        (num_data_bits, num_check_bits)
-    }
-
-    fn print_codeword_table(&self) {
-        let (num_data_bits, num_check_bits) = self.num_data_and_check_bits();
-        let total_bits = num_data_bits + num_check_bits;
-
-        let expected_check_bits = self.get_expected_check_bits();
-
-        let pwidth = usize::try_from(total_bits.ilog2() + 1).unwrap();
-        let vwidth = usize::try_from(std::cmp::max(num_data_bits, num_check_bits).ilog10() + 1).unwrap();
-
-        println!(
-            "Position{} | Value{} | Expected ",
-            " ".repeat(pwidth.saturating_sub(8)),
-            " ".repeat(vwidth)
-        );
-        println!(
-            "---------{}+-------{}+----------",
-            "-".repeat(pwidth.saturating_sub(8)),
-            "-".repeat(vwidth)
-        );
-        println!(
-            "{}{} | Unused{} | N/A",
-            " ".repeat(8usize.saturating_sub(pwidth)),
-            "0".repeat(pwidth),
-            " ".repeat(vwidth.saturating_sub(1))
-        );
-
-        let mut data_bit_counter = 0;
-        let mut check_bit_counter = 0;
-        for i in 1..=total_bits {
-            println!(
-                "{}{:0pwidth$b} | {}={} | {}",
-                " ".repeat(8usize.saturating_sub(pwidth)),
-                i,
-                if i.is_power_of_two() {
-                    format!(
-                        "C[{:0vwidth$}]",
-                        check_bit_counter,
-                        vwidth = vwidth
-                    )
-                } else {
-                    format!(
-                        "D[{:0vwidth$}]",
-                        data_bit_counter,
-                        vwidth = vwidth
-                    )
-                },
-                if self[i - 1] {1} else {0},
-                if i.is_power_of_two() {
-                    format!(
-                        "{:b}",
-                        if expected_check_bits[check_bit_counter] {1} else {0}
-                    )
-                } else {
-                    "N/A".to_string()
-                }
-            );
-
-            if i.is_power_of_two() {
-                check_bit_counter += 1;
-            } else {
-                data_bit_counter += 1;
-            }
-        }
     }
 }
 

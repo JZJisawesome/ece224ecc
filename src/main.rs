@@ -19,8 +19,7 @@
  * Uses
  * --------------------------------------------------------------------------------------------- */
 
-use ece224ecc::BitVec;
-use ece224ecc::Bin;
+use ece224ecc::*;
 
 /* ------------------------------------------------------------------------------------------------
  * Functions
@@ -59,10 +58,9 @@ fn bad_usage() {
 }
 
 fn encode_subcmd(data: &BitVec) {
-    use ece224ecc::DataBitVec;
     let num_data_bits = data.len();
-    let num_check_bits = data.check_bits_needed();
-    let total_bits = num_data_bits + num_check_bits;
+    let num_check_bits = DataBitVec::num_check_bits(data);
+    //let total_bits = num_data_bits + num_check_bits;
 
     println!("Encoding data              : \"{}\" (msb -> lsb)", data);
     println!("Number of data bits        : {}", num_data_bits);
@@ -71,36 +69,35 @@ fn encode_subcmd(data: &BitVec) {
     todo!()
 }
 
-fn decode_subcmd(codeword: &[bool]) {
-//fn decode_subcmd(codeword: &BitVec) {
-    let (num_data_bits, num_check_bits) = codeword.num_data_and_check_bits();
-    let total_bits = num_data_bits + num_check_bits;
+fn decode_subcmd(codeword: &BitVec) {
+    let num_data_bits = CodewordBitVec::num_data_bits(codeword);
+    let num_check_bits = CodewordBitVec::num_check_bits(codeword);
 
-    println!("Decoding codeword   : \"{}\" (msb -> lsb)", codeword.bin_string());
+    println!("Decoding codeword   : \"{}\" (msb -> lsb)", codeword);
     println!("Number of data bits : {}", num_data_bits);
     println!("Number of check bits: {}", num_check_bits);
-    codeword.print_codeword_table();
+    codeword.print_table();
 
-    let data_bits = codeword.get_data_bits();
-    let check_bits = codeword.get_check_bits();
+    let data_bits = CodewordBitVec::get_data_bits(codeword);
+    let check_bits = CodewordBitVec::get_check_bits(codeword);
     let expected_check_bits = codeword.get_expected_check_bits();
-    let syndrome = codeword.get_syndrome();
-    println!("Data bits          : \"{}\" (msb -> lsb)", (&data_bits[..]).bin_string());
-    println!("Check bits         : \"{}\" (msb -> lsb)", (&check_bits[..]).bin_string());
-    println!("Expected check bits: \"{}\" (msb -> lsb)", (&expected_check_bits[..]).bin_string());
-    println!("Syndrome           : \"{}\" (msb -> lsb)", (&syndrome[..]).bin_string());
+    let syndrome = CodewordBitVec::get_syndrome_bits(codeword);
+    println!("Data bits          : \"{}\" (msb -> lsb)", data_bits);
+    println!("Check bits         : \"{}\" (msb -> lsb)", check_bits);
+    println!("Expected check bits: \"{}\" (msb -> lsb)", expected_check_bits);
+    println!("Syndrome           : \"{}\" (msb -> lsb)", syndrome);
 
-    let corrected = codeword.correct();
-    let new_data_bits = (&corrected[..]).get_data_bits();
-    let new_check_bits = (&corrected[..]).get_check_bits();
-    let new_expected_check_bits = (&corrected[..]).get_expected_check_bits();
-    let new_syndrome = (&corrected[..]).get_syndrome();
-    println!("Corrected codeword : \"{}\" (msb -> lsb)", (&corrected[..]).bin_string());
-    println!("New data bits      : \"{}\" (msb -> lsb)", (&new_data_bits[..]).bin_string());
-    println!("New check bits     : \"{}\" (msb -> lsb)", (&new_check_bits[..]).bin_string());
-    println!("New expected check : \"{}\" (msb -> lsb)", (&new_expected_check_bits[..]).bin_string());
-    println!("New syndrome       : \"{}\" (msb -> lsb)", (&new_syndrome[..]).bin_string());
-    (&corrected[..]).print_codeword_table();
+    let corrected = codeword.get_corrected_codeword().unwrap();//TODO handle properly
+    let new_data_bits = CodewordBitVec::get_data_bits(&corrected);
+    let new_check_bits = CodewordBitVec::get_check_bits(&corrected);
+    let new_expected_check_bits = CodewordBitVec::get_expected_check_bits(&corrected);
+    let new_syndrome = CodewordBitVec::get_syndrome_bits(&corrected);
+    println!("Corrected codeword : \"{}\" (msb -> lsb)", corrected);
+    println!("New data bits      : \"{}\" (msb -> lsb)", new_data_bits);
+    println!("New check bits     : \"{}\" (msb -> lsb)", new_check_bits);
+    println!("New expected check : \"{}\" (msb -> lsb)", new_expected_check_bits);
+    println!("New syndrome       : \"{}\" (msb -> lsb)", new_syndrome);
+    corrected.print_table();
 }
 
 /* ------------------------------------------------------------------------------------------------
