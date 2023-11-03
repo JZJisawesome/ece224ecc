@@ -1,8 +1,55 @@
 [package]
 name = "ece224ecc"
 version = "0.1.0"
+description = "ECC Homework Helper for ECE 224"
+authors = ["John Zacarias Jekel <john@jekel.ca>"]
+readme = "README.md"
+#homepage = ""
+repository = "https://github.com/JZJisawesome/ece224ecc"
+license = "MIT"
+#license-file = "LICENSE"
 edition = "2021"
+#keywords = []
+#categories = []
+#default-run = ""
+#documentation = ""
+
+[workspace]
+
+#members = [
+#    "xrve_proc_macro",
+#]
+
+#[dependencies]
+#xrve_proc_macro = { path = "xrve_proc_macro" }
+
+[features]
+default = []
+
+[lib]
+name = "ece224ecc"
+path = "lib/lib.rs"
+
+[[bin]]
+name = "ece224ecc"
+path = "src/main.rs"
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+codegen-units = 1
+strip = true
+overflow-checks = false
+panic = "abort"
+lto = true
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+overflow-checks = false
+panic = "abort"
+lto = false
+debug = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
