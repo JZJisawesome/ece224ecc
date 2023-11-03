@@ -55,7 +55,7 @@ use std::convert;
 //Actually we'll play this simpler
 #[derive(Debug, Clone)]
 pub struct BitVec {
-    bitvec: Vec<bool>,//lsb to msb
+    data: Vec<bool>,//lsb to msb
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -65,16 +65,22 @@ pub struct BitVec {
 impl BitVec {
     pub fn new() -> Self {
         BitVec {
-            bitvec: Vec::new(),
+            data: Vec::new()
+        }
+    }
+
+    fn with_capacity(capacity: usize) -> Self {
+        BitVec {
+            data: Vec::with_capacity(capacity)
         }
     }
 
     pub fn len(&self) -> usize {
-        self.bitvec.len()
+        self.data.len()
     }
 
     pub fn empty(&self) -> bool {
-        self.bitvec.is_empty()
+        self.data.is_empty()
     }
 }
 
@@ -85,7 +91,8 @@ impl BitVec {
 pub trait DataBitVec {
     //Assuming just data in the BitVec
     fn check_bits_needed(&self) -> usize;
-    fn encode(&self) -> BitVec;
+    fn get_codeword(&self) -> BitVec;
+    fn get_check_bits(&self) -> BitVec;
 }
 
 pub trait CheckBitVec {
@@ -95,9 +102,13 @@ pub trait SyndromeBitVec {
 }
 
 pub trait CodewordBitVec {
-    //TODO
-    //fn num_data_and_check_bits(&self) -> (usize, usize);
-    //fn print_codeword_table(&self);
+    fn num_data_check_bits(&self) -> (usize, usize);
+    fn get_data_bits(&self) -> BitVec;
+    fn get_check_bits(&self) -> BitVec;
+    fn get_syndrome(&self) -> BitVec;
+    fn get_expected_check_bits(&self) -> BitVec;
+    fn get_corrected_codeword(&self) -> BitVec;
+    fn print_table(&self);
 }
 
 pub trait Bin {//Old
@@ -125,7 +136,7 @@ pub trait Bin {//Old
 
 impl DataBitVec for BitVec {
     fn check_bits_needed(&self) -> usize {
-        let num_data_bits = self.bitvec.len();
+        let num_data_bits = self.data.len();
         let mut num_check_bits = 0;
         while (1 << num_check_bits) < (num_data_bits + num_check_bits + 1) {
             num_check_bits += 1;
@@ -133,52 +144,163 @@ impl DataBitVec for BitVec {
         num_check_bits
     }
 
-    fn encode(&self) -> BitVec {
+    fn get_codeword(&self) -> BitVec {
+        todo!()
+    }
+    fn get_check_bits(&self) -> BitVec {
+        todo!();
+    }
+}
+
+impl CheckBitVec for BitVec {
+    //TODO
+}
+
+impl SyndromeBitVec for BitVec {
+    //TODO
+}
+
+impl CodewordBitVec for BitVec {
+    fn num_data_check_bits(&self) -> (usize, usize) {
+        todo!()
+    }
+
+    fn get_data_bits(&self) -> BitVec {
+        self.iter()
+            .copied()
+            .enumerate()
+            .filter(|(i, _)| !((i + 1).is_power_of_two()))
+            .map(|(_, bit)| bit)
+            .collect()
+    }
+
+    fn get_check_bits(&self) -> BitVec {
+        self.iter()
+            .copied()
+            .enumerate()
+            .filter(|(i, _)| (i + 1).is_power_of_two())
+            .map(|(_, bit)| bit)
+            .collect()
+    }
+
+    fn get_syndrome(&self) -> BitVec {
+        let check_bits = CodewordBitVec::get_check_bits(self);
+        let expected_check_bits = self.get_expected_check_bits();
+        std::iter::zip(check_bits.iter(), expected_check_bits.iter())
+            .map(|(a, b)| a ^ b)
+            .collect()
+    }
+
+    fn get_expected_check_bits(&self) -> BitVec {
+        let mut expected_check_bits = BitVec::with_capacity(self.len());
+
+        let (_, num_check_bits) = self.num_data_check_bits();
+
+        for i in 0..num_check_bits {//Iterate over all check bits
+            let check_bit_pos = 1 << i;//The actual check bit position
+            expected_check_bits.data.push(false);
+
+            for j in 0..self.len() {//Iterate over all data bits
+                let data_bit_pos = j + 1;//The actual data bit position
+                if data_bit_pos.is_power_of_two() {
+                    continue;//Skip check bits
+                }
+
+                //We only include the data bit in the xor if
+                //the relevant bit of the position is a 1
+                if (data_bit_pos & check_bit_pos) != 0 {
+                    expected_check_bits.data[i] ^= self[j];
+                }
+            }
+        }
+        expected_check_bits
+    }
+
+    fn get_corrected_codeword(&self) -> BitVec {
+        //TODO avoid conversion to usize
+        let syndrome: usize = self.get_syndrome().try_into().unwrap();
+        let mut corrected_codeword = self.clone();
+        if syndrome != 0 {
+            //Correct the invalid bi5
+            corrected_codeword.data[syndrome - 1] ^= true;
+        }
+        corrected_codeword
+        /*
+        self.iter().enumerate()
+            .map(|(i, &bit)| {
+                let pos = i + 1;
+                if pos == syndrome {
+                    !bit
+                } else {
+                    bit
+                }
+            })
+            .collect()
+        */
+    }
+
+    fn print_table(&self) {
         todo!()
     }
 }
 
+impl FromIterator<bool> for BitVec {
+    fn from_iter<I: IntoIterator<Item = bool>>(iter: I) -> Self {
+        BitVec { data: Vec::from_iter(iter) }
+    }
+}
+
 impl From<Vec<bool>> for BitVec {
-    fn from(bitvec: Vec<bool>) -> Self {
+    fn from(data: Vec<bool>) -> Self {
         BitVec {
-            bitvec,
+            data,
         }
     }
 }
 
 impl convert::AsRef<Vec<bool>> for BitVec {
     fn as_ref(&self) -> &Vec<bool> {
-        &self.bitvec
+        &self.data
     }
 }
 
+/*
 impl convert::AsMut<Vec<bool>> for BitVec {
     fn as_mut(&mut self) -> &mut Vec<bool> {
-        &mut self.bitvec
+        &mut self.data
     }
 }
+*/
 
 impl convert::AsRef<[bool]> for BitVec {
     fn as_ref(&self) -> &[bool] {
-        self.bitvec.as_ref()
+        self.data.as_ref()
     }
 }
 
+/*
+//Comment this out since we really don't want main modifying the BitVec itself anyways
 impl convert::AsMut<[bool]> for BitVec {
     fn as_mut(&mut self) -> &mut [bool] {
-        self.bitvec.as_mut()
+        self.data.as_mut()
     }
 }
+*/
 
 impl From<BitVec> for Vec<bool> {
     fn from(bitvec: BitVec) -> Self {
-        bitvec.bitvec
+        bitvec.data
     }
 }
 
 impl From<usize> for BitVec {
-    fn from(num: usize) -> Self {
-        todo!()
+    fn from(mut num: usize) -> Self {
+        let mut bitvec = BitVec::with_capacity(usize::BITS as usize);
+        while num != 0 {
+            bitvec.data.push((num & 1) == 1);
+            num >>= 1;
+        }
+        bitvec
     }
 }
 
@@ -186,7 +308,18 @@ impl TryFrom<BitVec> for usize {
     type Error = ();
 
     fn try_from(bitvec: BitVec) -> Result<Self, Self::Error> {
-        todo!()
+        bitvec.data.iter()
+            .enumerate()
+            .fold(Ok(0), |wrapped_val, (i, &bit)|
+                if i >= (usize::BITS as usize) {
+                    Err(())
+                } else {
+                    match wrapped_val {
+                        Ok(val) => Ok(val | if bit {1 << i} else {0}),
+                        Err(()) => Err(())
+                    }
+                }
+            )
     }
 }
 
@@ -194,19 +327,22 @@ impl ops::Deref for BitVec {
     type Target = [bool];
 
     fn deref(&self) -> &Self::Target {
-        &self.bitvec
+        &self.data
     }
 }
 
+/*
+//Comment this out since we really don't want main modifying the BitVec itself anyways
 impl ops::DerefMut for BitVec {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.bitvec
+        &mut self.data
     }
 }
+*/
 
 impl fmt::Display for BitVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bitstring: String = self.bitvec.iter()
+        let bitstring: String = self.data.iter()
             .rev()//So we print msb -> lsb
             .map(|b| match b {
                 true  => '1',
@@ -229,7 +365,7 @@ impl str::FromStr for BitVec {
                 _ => Err(()),
             })
             .collect();
-        Ok(BitVec { bitvec: parsed_bitvec? })
+        Ok(BitVec { data: parsed_bitvec? })
     }
 }
 
