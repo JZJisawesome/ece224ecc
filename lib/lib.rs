@@ -27,6 +27,7 @@
 
 use std::fmt;
 use std::ops;
+use std::cmp;
 use std::str;
 use std::convert;
 
@@ -129,6 +130,7 @@ pub trait CodewordBitVec {
     fn get_check_bits(&self) -> BitVec;
     fn get_syndrome_bits(&self) -> BitVec;
     fn get_expected_check_bits(&self) -> BitVec;
+    fn get_codeword(&self) -> BitVec;
     fn get_corrected_codeword(&self) -> Result<BitVec, ()>;
     fn print_table(&self);
 }
@@ -151,13 +153,34 @@ impl DataBitVec for BitVec {
     }
 
     fn get_codeword(&self) -> BitVec {
-        todo!()
+        let num_check_bits = DataBitVec::num_check_bits(self);
+        let total_bits = self.len() + num_check_bits;
+        let mut codeword = BitVec::with_capacity(total_bits);
+
+        let mut current_data_bit = 0;
+        for i in 1..=total_bits {
+            if i.is_power_of_two() {
+                codeword.data.push(false);//Placeholder
+            } else {
+                codeword.data.push(self[current_data_bit]);
+                current_data_bit += 1;
+            }
+        }
+
+        let expected_check_bits = codeword.get_expected_check_bits();
+
+        for i in 0..num_check_bits {//Iterate over all check bits
+            let check_bit_pos = 1 << i;//The actual check bit position
+            codeword.data[check_bit_pos - 1] = expected_check_bits[i];
+        }
+        codeword
     }
     fn get_data_bits(&self) -> BitVec {
         self.clone()
     }
     fn get_check_bits(&self) -> BitVec {
-        todo!();
+        let codeword = DataBitVec::get_codeword(self);
+        CodewordBitVec::get_check_bits(&codeword)
     }
 }
 
@@ -240,6 +263,10 @@ impl CodewordBitVec for BitVec {
             }
         }
         expected_check_bits
+    }
+
+    fn get_codeword(&self) -> BitVec {
+        self.clone()
     }
 
     fn get_corrected_codeword(&self) -> Result<BitVec, ()> {
@@ -461,6 +488,14 @@ impl str::FromStr for BitVec {
     }
 }
 
+impl cmp::Eq for BitVec {}
+
+impl cmp::PartialEq for BitVec {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
+}
+
 /* ------------------------------------------------------------------------------------------------
  * Functions
  * --------------------------------------------------------------------------------------------- */
@@ -471,7 +506,94 @@ impl str::FromStr for BitVec {
  * Tests
  * --------------------------------------------------------------------------------------------- */
 
-//TODO
+mod tests {
+    use std::str::FromStr;
+    use super::*;
+
+    //Manually written tests
+    #[test]
+    fn lecture_slides_290() {
+        let good_data: BitVec = "1110".parse().unwrap();
+        assert_eq!(DataBitVec::get_check_bits(&good_data), "100".parse().unwrap());
+        let bad_data: BitVec = "1010".parse().unwrap();
+        assert_eq!(DataBitVec::get_check_bits(&bad_data), "010".parse().unwrap());
+    }
+
+    #[test]
+    fn lecture_slides_302() {
+        let bitvec: BitVec = "001101101111".parse().unwrap();
+        assert_eq!(CodewordBitVec::get_data_bits(&bitvec), "00111101".parse().unwrap());
+        assert_eq!(CodewordBitVec::get_check_bits(&bitvec), "0111".parse().unwrap());
+        assert_eq!(bitvec.get_expected_check_bits(), "0001".parse().unwrap());
+        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "0110".parse().unwrap());
+        let corrected = bitvec.get_corrected_codeword().unwrap();
+        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "00111001".parse().unwrap());
+    }
+
+    #[test]
+    fn assignment_4_question_8_a() {
+        let bitvec: BitVec = "110000101111000100111".parse().unwrap();
+        assert_eq!(bitvec.get_expected_check_bits(), "01011".parse().unwrap());
+        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "01000".parse().unwrap());
+        let corrected = bitvec.get_corrected_codeword().unwrap();
+        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "1100010111100101".parse().unwrap());
+    }
+
+    #[test]
+    fn assignment_4_question_8_b() {
+        let bitvec: BitVec = "101101100011101010001".parse().unwrap();
+        assert_eq!(bitvec.get_expected_check_bits(), "10001".parse().unwrap());
+        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "00000".parse().unwrap());
+        let corrected = bitvec.get_corrected_codeword().unwrap();
+        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "1011010001111010".parse().unwrap());
+    }
+
+    #[test]
+    fn assignment_4_question_8_c() {
+        let bitvec: BitVec = "001010100110001100001".parse().unwrap();
+        assert_eq!(bitvec.get_expected_check_bits(), "01011".parse().unwrap());
+        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "01010".parse().unwrap());
+        let corrected = bitvec.get_corrected_codeword().unwrap();
+        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "0010110011101100".parse().unwrap());
+    }
+
+    //Github Copilot generated tests
+    #[test]
+    fn copilot_test_bitvec_from_iter() {
+        let bitvec = BitVec::from_iter(vec![true, false, true, false, true, false, true, false]);
+        assert_eq!(bitvec.data, vec![true, false, true, false, true, false, true, false]);
+    }
+
+    #[test]
+    fn copilot_test_bitvec_from_vec() {
+        let bitvec = BitVec::from(vec![true, false, true, false, true, false, true, false]);
+        assert_eq!(bitvec.data, vec![true, false, true, false, true, false, true, false]);
+    }
+
+    #[test]
+    fn copilot_test_bitvec_from_usize() {
+        let bitvec = BitVec::from(170usize);
+        assert_eq!(bitvec.data, vec![false, true, false, true, false, true, false, true]);
+    }
+
+    #[test]
+    fn copilot_test_bitvec_try_from_usize() {
+        let bitvec = BitVec::try_from(BitVec::from(170usize)).unwrap();
+        assert_eq!(bitvec.data, vec![false, true, false, true, false, true, false, true]);
+    }
+
+    #[test]
+    fn copilot_test_bitvec_display() {
+        let bitvec = BitVec::from(170usize);
+        assert_eq!(format!("{}", bitvec), "10101010");
+    }
+
+    #[test]
+    fn copilot_test_bitvec_deref() {
+        let bitvec = BitVec::from(170usize);
+        assert_eq!(*bitvec, vec![false, true, false, true, false, true, false, true]);
+    }
+}
 
 /* ------------------------------------------------------------------------------------------------
  * Benchmarks

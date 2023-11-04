@@ -66,7 +66,11 @@ fn encode_subcmd(data: &BitVec) {
     println!("Number of data bits        : {}", num_data_bits);
     println!("Number of check bits needed: {}", num_check_bits);
 
-    todo!()
+    let codeword = DataBitVec::get_codeword(data);
+    let check_bits = CodewordBitVec::get_check_bits(&codeword);
+    println!("Codeword                   : \"{}\" (msb -> lsb)", codeword);
+    println!("Check bits                 : \"{}\" (msb -> lsb)", check_bits);
+    codeword.print_table();
 }
 
 fn decode_subcmd(codeword: &BitVec) {
