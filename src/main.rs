@@ -69,7 +69,10 @@ fn encode_subcmd(data: &BitVec) {
     let codeword = DataBitVec::get_codeword(data);
     let check_bits = CodewordBitVec::get_check_bits(&codeword);
     println!("Codeword                   : \"{}\" (msb -> lsb)", codeword);
-    println!("Check bits                 : \"{}\" (msb -> lsb)", check_bits);
+    println!(
+        "Check bits                 : \"{}\" (msb -> lsb)",
+        check_bits
+    );
     codeword.print_table();
 }
 
@@ -88,10 +91,13 @@ fn decode_subcmd(codeword: &BitVec) {
     let syndrome = CodewordBitVec::get_syndrome_bits(codeword);
     println!("Data bits          : \"{}\" (msb -> lsb)", data_bits);
     println!("Check bits         : \"{}\" (msb -> lsb)", check_bits);
-    println!("Expected check bits: \"{}\" (msb -> lsb)", expected_check_bits);
+    println!(
+        "Expected check bits: \"{}\" (msb -> lsb)",
+        expected_check_bits
+    );
     println!("Syndrome           : \"{}\" (msb -> lsb)", syndrome);
 
-    let corrected = codeword.get_corrected_codeword().unwrap();//TODO handle properly
+    let corrected = codeword.get_corrected_codeword().unwrap(); //TODO handle properly
     let new_data_bits = CodewordBitVec::get_data_bits(&corrected);
     let new_check_bits = CodewordBitVec::get_check_bits(&corrected);
     let new_expected_check_bits = CodewordBitVec::get_expected_check_bits(&corrected);
@@ -99,7 +105,10 @@ fn decode_subcmd(codeword: &BitVec) {
     println!("Corrected codeword : \"{}\" (msb -> lsb)", corrected);
     println!("New data bits      : \"{}\" (msb -> lsb)", new_data_bits);
     println!("New check bits     : \"{}\" (msb -> lsb)", new_check_bits);
-    println!("New expected check : \"{}\" (msb -> lsb)", new_expected_check_bits);
+    println!(
+        "New expected check : \"{}\" (msb -> lsb)",
+        new_expected_check_bits
+    );
     println!("New syndrome       : \"{}\" (msb -> lsb)", new_syndrome);
     corrected.print_table();
 }
