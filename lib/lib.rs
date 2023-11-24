@@ -25,11 +25,11 @@
  * Uses
  * --------------------------------------------------------------------------------------------- */
 
+use std::cmp;
+use std::convert;
 use std::fmt;
 use std::ops;
-use std::cmp;
 use std::str;
-use std::convert;
 
 /* ------------------------------------------------------------------------------------------------
  * Macros
@@ -56,7 +56,7 @@ use std::convert;
 //Actually we'll play this simpler
 #[derive(Debug, Clone)]
 pub struct BitVec {
-    data: Vec<bool>,//lsb to msb
+    data: Vec<bool>, //lsb to msb
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -83,7 +83,7 @@ impl BitVec {
 
     fn with_capacity(capacity: usize) -> Self {
         BitVec {
-            data: Vec::with_capacity(capacity)
+            data: Vec::with_capacity(capacity),
         }
     }
 
@@ -104,8 +104,8 @@ impl BitVec {
 
 pub trait DataBitVec {
     //Assuming just data in the BitVec
-    fn num_data_bits(&self) -> usize;//The number present
-    fn num_check_bits(&self) -> usize;//The number needed
+    fn num_data_bits(&self) -> usize; //The number present
+    fn num_check_bits(&self) -> usize; //The number needed
     fn get_codeword(&self) -> BitVec;
     fn get_data_bits(&self) -> BitVec;
     fn get_check_bits(&self) -> BitVec;
@@ -113,19 +113,19 @@ pub trait DataBitVec {
 
 pub trait CheckBitVec {
     //Impossible to determine data bits
-    fn num_check_bits(&self) -> usize;//The number present
+    fn num_check_bits(&self) -> usize; //The number present
     fn get_check_bits(&self) -> BitVec;
 }
 
 pub trait SyndromeBitVec {
     //Impossible to determine data bits
-    fn num_check_bits(&self) -> usize;//The number needed
+    fn num_check_bits(&self) -> usize; //The number needed
     fn get_syndrome_bits(&self) -> BitVec;
 }
 
 pub trait CodewordBitVec {
-    fn num_data_bits(&self) -> usize;//The number present
-    fn num_check_bits(&self) -> usize;//The number present
+    fn num_data_bits(&self) -> usize; //The number present
+    fn num_check_bits(&self) -> usize; //The number present
     fn get_data_bits(&self) -> BitVec;
     fn get_check_bits(&self) -> BitVec;
     fn get_syndrome_bits(&self) -> BitVec;
@@ -143,7 +143,8 @@ impl DataBitVec for BitVec {
     fn num_data_bits(&self) -> usize {
         self.data.len()
     }
-    fn num_check_bits(&self) -> usize {//The number needed
+    fn num_check_bits(&self) -> usize {
+        //The number needed
         let num_data_bits = DataBitVec::num_data_bits(self);
         let mut num_check_bits = 0;
         while (1 << num_check_bits) < (num_data_bits + num_check_bits + 1) {
@@ -160,7 +161,7 @@ impl DataBitVec for BitVec {
         let mut current_data_bit = 0;
         for i in 1..=total_bits {
             if i.is_power_of_two() {
-                codeword.data.push(false);//Placeholder
+                codeword.data.push(false); //Placeholder
             } else {
                 codeword.data.push(self[current_data_bit]);
                 current_data_bit += 1;
@@ -169,8 +170,9 @@ impl DataBitVec for BitVec {
 
         let expected_check_bits = codeword.get_expected_check_bits();
 
-        for i in 0..num_check_bits {//Iterate over all check bits
-            let check_bit_pos = 1 << i;//The actual check bit position
+        for i in 0..num_check_bits {
+            //Iterate over all check bits
+            let check_bit_pos = 1 << i; //The actual check bit position
             codeword.data[check_bit_pos - 1] = expected_check_bits[i];
         }
         codeword
@@ -245,14 +247,16 @@ impl CodewordBitVec for BitVec {
 
         let (_, num_check_bits) = self.num_data_check_bits();
 
-        for i in 0..num_check_bits {//Iterate over all check bits
-            let check_bit_pos = 1 << i;//The actual check bit position
+        for i in 0..num_check_bits {
+            //Iterate over all check bits
+            let check_bit_pos = 1 << i; //The actual check bit position
             expected_check_bits.data.push(false);
 
-            for j in 0..self.len() {//Iterate over all data bits
-                let data_bit_pos = j + 1;//The actual data bit position
+            for j in 0..self.len() {
+                //Iterate over all data bits
+                let data_bit_pos = j + 1; //The actual data bit position
                 if data_bit_pos.is_power_of_two() {
-                    continue;//Skip check bits
+                    continue; //Skip check bits
                 }
 
                 //We only include the data bit in the xor if
@@ -304,7 +308,8 @@ impl CodewordBitVec for BitVec {
         let expected_check_bits = self.get_expected_check_bits();
 
         let pwidth = usize::try_from(total_bits.ilog2() + 1).unwrap();
-        let vwidth = usize::try_from(std::cmp::max(num_data_bits, num_check_bits).ilog10() + 1).unwrap();
+        let vwidth =
+            usize::try_from(std::cmp::max(num_data_bits, num_check_bits).ilog10() + 1).unwrap();
 
         println!(
             "Position{} | Value{} | Expected ",
@@ -331,23 +336,19 @@ impl CodewordBitVec for BitVec {
                 " ".repeat(8usize.saturating_sub(pwidth)),
                 i,
                 if i.is_power_of_two() {
-                    format!(
-                        "C[{:0vwidth$}]",
-                        check_bit_counter,
-                        vwidth = vwidth
-                    )
+                    format!("C[{:0vwidth$}]", check_bit_counter, vwidth = vwidth)
                 } else {
-                    format!(
-                        "D[{:0vwidth$}]",
-                        data_bit_counter,
-                        vwidth = vwidth
-                    )
+                    format!("D[{:0vwidth$}]", data_bit_counter, vwidth = vwidth)
                 },
-                if self[i - 1] {1} else {0},
+                if self[i - 1] { 1 } else { 0 },
                 if i.is_power_of_two() {
                     format!(
                         "{:b}",
-                        if expected_check_bits[check_bit_counter] {1} else {0}
+                        if expected_check_bits[check_bit_counter] {
+                            1
+                        } else {
+                            0
+                        }
                     )
                 } else {
                     "N/A".to_string()
@@ -365,15 +366,15 @@ impl CodewordBitVec for BitVec {
 
 impl FromIterator<bool> for BitVec {
     fn from_iter<I: IntoIterator<Item = bool>>(iter: I) -> Self {
-        BitVec { data: Vec::from_iter(iter) }
+        BitVec {
+            data: Vec::from_iter(iter),
+        }
     }
 }
 
 impl From<Vec<bool>> for BitVec {
     fn from(data: Vec<bool>) -> Self {
-        BitVec {
-            data,
-        }
+        BitVec { data }
     }
 }
 
@@ -427,18 +428,20 @@ impl TryFrom<BitVec> for usize {
     type Error = ();
 
     fn try_from(bitvec: BitVec) -> Result<Self, Self::Error> {
-        bitvec.data.iter()
+        bitvec
+            .data
+            .iter()
             .enumerate()
-            .fold(Ok(0), |wrapped_val, (i, &bit)|
+            .fold(Ok(0), |wrapped_val, (i, &bit)| {
                 if i >= (usize::BITS as usize) {
                     Err(())
                 } else {
                     match wrapped_val {
-                        Ok(val) => Ok(val | if bit {1 << i} else {0}),
-                        Err(()) => Err(())
+                        Ok(val) => Ok(val | if bit { 1 << i } else { 0 }),
+                        Err(()) => Err(()),
                     }
                 }
-            )
+            })
     }
 }
 
@@ -461,10 +464,12 @@ impl ops::DerefMut for BitVec {
 
 impl fmt::Display for BitVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let bitstring: String = self.data.iter()
-            .rev()//So we print msb -> lsb
+        let bitstring: String = self
+            .data
+            .iter()
+            .rev() // So we print msb -> lsb
             .map(|b| match b {
-                true  => '1',
+                true => '1',
                 false => '0',
             })
             .collect();
@@ -476,15 +481,18 @@ impl str::FromStr for BitVec {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parsed_bitvec: Result<Vec<bool>, ()> = s.chars()
-            .rev()//So the vec is lsb -> msb
+        let parsed_bitvec: Result<Vec<bool>, ()> = s
+            .chars()
+            .rev() // So the vec is lsb -> msb
             .map(|c| match c {
                 '0' => Ok(false),
                 '1' => Ok(true),
                 _ => Err(()),
             })
             .collect();
-        Ok(BitVec { data: parsed_bitvec? })
+        Ok(BitVec {
+            data: parsed_bitvec?,
+        })
     }
 }
 
@@ -506,80 +514,129 @@ impl cmp::PartialEq for BitVec {
  * Tests
  * --------------------------------------------------------------------------------------------- */
 
+#[cfg(tests)]
 mod tests {
-    use std::str::FromStr;
-    use super::*;
 
     //Manually written tests
+    use crate::*;
+
     #[test]
     fn lecture_slides_290() {
         let good_data: BitVec = "1110".parse().unwrap();
-        assert_eq!(DataBitVec::get_check_bits(&good_data), "100".parse().unwrap());
+        assert_eq!(
+            DataBitVec::get_check_bits(&good_data),
+            "100".parse().unwrap()
+        );
         let bad_data: BitVec = "1010".parse().unwrap();
-        assert_eq!(DataBitVec::get_check_bits(&bad_data), "010".parse().unwrap());
+        assert_eq!(
+            DataBitVec::get_check_bits(&bad_data),
+            "010".parse().unwrap()
+        );
     }
 
     #[test]
     fn lecture_slides_302() {
         let bitvec: BitVec = "001101101111".parse().unwrap();
-        assert_eq!(CodewordBitVec::get_data_bits(&bitvec), "00111101".parse().unwrap());
-        assert_eq!(CodewordBitVec::get_check_bits(&bitvec), "0111".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_data_bits(&bitvec),
+            "00111101".parse().unwrap()
+        );
+        assert_eq!(
+            CodewordBitVec::get_check_bits(&bitvec),
+            "0111".parse().unwrap()
+        );
         assert_eq!(bitvec.get_expected_check_bits(), "0001".parse().unwrap());
-        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "0110".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_syndrome_bits(&bitvec),
+            "0110".parse().unwrap()
+        );
         let corrected = bitvec.get_corrected_codeword().unwrap();
-        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "00111001".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_data_bits(&corrected),
+            "00111001".parse().unwrap()
+        );
     }
 
     #[test]
     fn assignment_4_question_8_a() {
         let bitvec: BitVec = "110000101111000100111".parse().unwrap();
         assert_eq!(bitvec.get_expected_check_bits(), "01011".parse().unwrap());
-        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "01000".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_syndrome_bits(&bitvec),
+            "01000".parse().unwrap()
+        );
         let corrected = bitvec.get_corrected_codeword().unwrap();
-        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "1100010111100101".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_data_bits(&corrected),
+            "1100010111100101".parse().unwrap()
+        );
     }
 
     #[test]
     fn assignment_4_question_8_b() {
         let bitvec: BitVec = "101101100011101010001".parse().unwrap();
         assert_eq!(bitvec.get_expected_check_bits(), "10001".parse().unwrap());
-        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "00000".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_syndrome_bits(&bitvec),
+            "00000".parse().unwrap()
+        );
         let corrected = bitvec.get_corrected_codeword().unwrap();
-        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "1011010001111010".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_data_bits(&corrected),
+            "1011010001111010".parse().unwrap()
+        );
     }
 
     #[test]
     fn assignment_4_question_8_c() {
         let bitvec: BitVec = "001010100110001100001".parse().unwrap();
         assert_eq!(bitvec.get_expected_check_bits(), "01011".parse().unwrap());
-        assert_eq!(CodewordBitVec::get_syndrome_bits(&bitvec), "01010".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_syndrome_bits(&bitvec),
+            "01010".parse().unwrap()
+        );
         let corrected = bitvec.get_corrected_codeword().unwrap();
-        assert_eq!(CodewordBitVec::get_data_bits(&corrected), "0010110011101100".parse().unwrap());
+        assert_eq!(
+            CodewordBitVec::get_data_bits(&corrected),
+            "0010110011101100".parse().unwrap()
+        );
     }
 
     //Github Copilot generated tests
     #[test]
     fn copilot_test_bitvec_from_iter() {
         let bitvec = BitVec::from_iter(vec![true, false, true, false, true, false, true, false]);
-        assert_eq!(bitvec.data, vec![true, false, true, false, true, false, true, false]);
+        assert_eq!(
+            bitvec.data,
+            vec![true, false, true, false, true, false, true, false]
+        );
     }
 
     #[test]
     fn copilot_test_bitvec_from_vec() {
         let bitvec = BitVec::from(vec![true, false, true, false, true, false, true, false]);
-        assert_eq!(bitvec.data, vec![true, false, true, false, true, false, true, false]);
+        assert_eq!(
+            bitvec.data,
+            vec![true, false, true, false, true, false, true, false]
+        );
     }
 
     #[test]
     fn copilot_test_bitvec_from_usize() {
         let bitvec = BitVec::from(170usize);
-        assert_eq!(bitvec.data, vec![false, true, false, true, false, true, false, true]);
+        assert_eq!(
+            bitvec.data,
+            vec![false, true, false, true, false, true, false, true]
+        );
     }
 
     #[test]
     fn copilot_test_bitvec_try_from_usize() {
         let bitvec = BitVec::try_from(BitVec::from(170usize)).unwrap();
-        assert_eq!(bitvec.data, vec![false, true, false, true, false, true, false, true]);
+        assert_eq!(
+            bitvec.data,
+            vec![false, true, false, true, false, true, false, true]
+        );
     }
 
     #[test]
@@ -591,7 +648,10 @@ mod tests {
     #[test]
     fn copilot_test_bitvec_deref() {
         let bitvec = BitVec::from(170usize);
-        assert_eq!(*bitvec, vec![false, true, false, true, false, true, false, true]);
+        assert_eq!(
+            *bitvec,
+            vec![false, true, false, true, false, true, false, true]
+        );
     }
 }
 
